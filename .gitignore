@@ -1,0 +1,6 @@
+“venv/n__pycache__/n.pytest_cache/n.env”
+venv/
+__pycache__/
+.pytest_cache/
+.env
+.DS_Store
