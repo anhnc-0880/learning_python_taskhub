@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class TaskStatus(str, Enum):
     TODO = "TODO"
@@ -16,6 +16,8 @@ class TaskPriority(str, Enum):
     URGENT = "URGENT"
 
 class TaskBase(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     title: str = Field(..., min_length=1)
     description: Optional[str] = None
     status: TaskStatus = TaskStatus.TODO
@@ -27,6 +29,8 @@ class TaskCreate(TaskBase):
     pass
 
 class TaskUpdate(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[TaskStatus] = None
@@ -35,11 +39,9 @@ class TaskUpdate(BaseModel):
     assignee_id: Optional[int] = None
 
 class TaskResponse(TaskBase):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
     id: int
     project_id: int
     created_by: int
-    created_at: str
-
-    model_config = {
-        "from_attributes": True
-    }
+    created_at: datetime
