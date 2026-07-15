@@ -45,3 +45,40 @@ class TaskResponse(TaskBase):
     project_id: int
     created_by: int
     created_at: datetime
+
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    MEMBER = "MEMBER"
+
+
+class UserBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+    email: str = Field(..., min_length=3)
+    full_name: str = Field(..., min_length=1)
+
+
+class UserCreate(BaseModel):
+    email: str = Field(..., min_length=3)
+    full_name: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=6)
+
+
+class UserLogin(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=1)
+
+
+class UserResponse(UserBase):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+    id: int
+    role: UserRole = UserRole.MEMBER
+    is_active: bool = True
+    created_at: datetime
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

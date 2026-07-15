@@ -1,9 +1,16 @@
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.auth_repository import UserRepository
+from app.auth_service import AuthService
 from app.database import SessionLocal
 from app.repository import TaskRepository
+from app.models import User
+from app.security import decode_access_token
 from app.service import TaskService
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_db():
@@ -20,6 +27,41 @@ def get_task_repo(db: Session = Depends(get_db)) -> TaskRepository:
 def get_task_service(repo: TaskRepository = Depends(get_task_repo)) -> TaskService:
     return TaskService(repo)
 
-def get_current_user_id() -> int:
-    # Fake user_id = 1 khi chua lam JWT auth ở Day 3
-    return 1
+def get_user_repo(db: Session = Depends(get_db)) -> UserRepository:
+    return UserRepository(db)
+
+
+def get_auth_service(repo: UserRepository = Depends(get_user_repo)) -> AuthService:
+    return AuthService(repo)
+
+
+def get_current_user(
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> User:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        payload = decode_access_token(credentials.credentials)
+        user_id = int(payload["sub"])
+    except (KeyError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    return user
+
+
+def get_current_user_id(current_user: User = Depends(get_current_user)) -> int:
+    return current_user.id
