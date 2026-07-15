@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from app.auth_router import router as auth_router
 from app.database import Base, SessionLocal, engine
 from app.models import Task
 from app.repository import TaskRepository
@@ -28,10 +29,8 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Chay khi startup
     print("TaskHub API startup...")
     yield
-    # Chay khi shutdown
     print("TaskHub API shutdown...")
 
 app = FastAPI(
@@ -44,3 +43,4 @@ def home():
     return {"message": "Welcome to TaskHub API", "docs": "/docs"}
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
