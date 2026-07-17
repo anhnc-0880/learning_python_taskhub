@@ -24,21 +24,39 @@ class TaskService:
             )
         return self._task_repo.create(project_id, task_data.model_dump(), created_by)
 
-    def update_task(self, task_id: int, task_data: TaskUpdate) -> Task:
-        update_dict = task_data.model_dump(exclude_unset=True)
-        updated_task = self._task_repo.update(task_id, update_dict)
-        if not updated_task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found"
-            )
-        return updated_task
+    def _can_manage_task(self, task: Task, current_user_id: int, current_user_role: str) -> bool:
+        return current_user_role == "ADMIN" or task.created_by == current_user_id
 
-    def delete_task(self, task_id: int) -> dict:
-        success = self._task_repo.delete(task_id)
-        if not success:
+    def update_task(self, task_id: int, task_data: TaskUpdate, current_user_id: int, current_user_role: str) -> Task:
+        task = self._task_repo.get_by_id(task_id)
+        if task is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Task not found"
             )
+
+        if not self._can_manage_task(task, current_user_id, current_user_role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot edit this task"
+            )
+
+        update_dict = task_data.model_dump(exclude_unset=True)
+        return self._task_repo.update(task_id, update_dict)
+
+    def delete_task(self, task_id: int, current_user_id: int, current_user_role: str) -> dict:
+        task = self._task_repo.get_by_id(task_id)
+        if task is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task not found"
+            )
+
+        if not self._can_manage_task(task, current_user_id, current_user_role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot delete this task"
+            )
+
+        self._task_repo.delete(task_id)
         return {"message": "Task deleted"}

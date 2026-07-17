@@ -24,8 +24,10 @@ def get_db():
 def get_task_repo(db: Session = Depends(get_db)) -> TaskRepository:
     return TaskRepository(db)
 
+
 def get_task_service(repo: TaskRepository = Depends(get_task_repo)) -> TaskService:
     return TaskService(repo)
+
 
 def get_user_repo(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
@@ -61,7 +63,3 @@ def get_current_user(
             detail="User not found",
         )
     return user
-
-
-def get_current_user_id(current_user: User = Depends(get_current_user)) -> int:
-    return current_user.id

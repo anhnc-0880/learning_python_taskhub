@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.auth_router import router as auth_router
+from app.exception_handlers import setup_exception_handlers
 from app.database import Base, SessionLocal, engine
 from app.models import Task
+from app.middleware import setup_middleware
 from app.repository import TaskRepository
 from app.router import router
 
@@ -37,6 +39,9 @@ app = FastAPI(
     title="TaskHub API",
     lifespan=lifespan
 )
+
+setup_middleware(app)
+setup_exception_handlers(app)
 
 @app.get("/")
 def home():
