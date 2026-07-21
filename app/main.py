@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.auth_router import router as auth_router
+from app.config import settings
 from app.exception_handlers import setup_exception_handlers
 from app.database import Base, SessionLocal, engine
 from app.models import Task
@@ -36,7 +37,7 @@ async def lifespan(app: FastAPI):
     print("TaskHub API shutdown...")
 
 app = FastAPI(
-    title="TaskHub API",
+    title=settings.app_name,
     lifespan=lifespan
 )
 
