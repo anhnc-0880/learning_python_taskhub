@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./taskhub.db"
     secret_key: str = Field(..., min_length=16)
     access_token_expire_seconds: int = 60 * 60
+    log_level: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
