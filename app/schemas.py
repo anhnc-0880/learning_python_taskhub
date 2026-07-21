@@ -70,6 +70,16 @@ class UserLogin(BaseModel):
     password: str = Field(..., min_length=1)
 
 
+class UserUpdate(BaseModel):
+    email: Optional[str] = Field(None, min_length=3)
+    full_name: Optional[str] = Field(None, min_length=1)
+
+
+class ChangePassword(BaseModel):
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)
+
+
 class UserResponse(UserBase):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 

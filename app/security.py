@@ -3,32 +3,12 @@ import hashlib
 import hmac
 import json
 import os
-import secrets
 import time
-from pathlib import Path
 from typing import Any, Dict
 
-ACCESS_TOKEN_EXPIRE_SECONDS = 60 * 60
+from app.config import settings
+
 HASH_ITERATIONS = 100_000
-ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
-
-
-def _load_env_file() -> None:
-    if not ENV_FILE.exists():
-        return
-
-    for raw_line in ENV_FILE.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
-
-
-_load_env_file()
-
-SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -68,7 +48,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return hmac.compare_digest(password_hash, expected_hash)
 
 
-def create_access_token(payload: Dict[str, Any], expires_seconds: int = ACCESS_TOKEN_EXPIRE_SECONDS) -> str:
+def create_access_token(payload: Dict[str, Any], expires_seconds: int = settings.access_token_expire_seconds) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
     token_payload = payload.copy()
     token_payload["exp"] = int(time.time()) + expires_seconds
@@ -77,7 +57,7 @@ def create_access_token(payload: Dict[str, Any], expires_seconds: int = ACCESS_T
     payload_part = _b64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
     signing_input = f"{header_part}.{payload_part}".encode("utf-8")
     signature = hmac.new(
-        SECRET_KEY.encode("utf-8"),
+        settings.secret_key.encode("utf-8"),
         signing_input,
         hashlib.sha256,
     ).digest()
@@ -93,7 +73,7 @@ def decode_access_token(token: str) -> Dict[str, Any]:
 
     signing_input = f"{header_part}.{payload_part}".encode("utf-8")
     expected_signature = hmac.new(
-        SECRET_KEY.encode("utf-8"),
+        settings.secret_key.encode("utf-8"),
         signing_input,
         hashlib.sha256,
     ).digest()

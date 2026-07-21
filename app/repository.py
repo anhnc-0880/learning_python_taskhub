@@ -3,14 +3,33 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import Task
+from app.schemas import TaskPriority, TaskStatus
 
 
 class TaskRepository:
     def __init__(self, db: Session):
         self._db = db
 
-    def get_by_project(self, project_id: int) -> List[Task]:
-        return self._db.query(Task).filter(Task.project_id == project_id).all()
+    def get_by_project(
+        self,
+        project_id: int,
+        status_filter: Optional[TaskStatus] = None,
+        priority: Optional[TaskPriority] = None,
+        assignee_id: Optional[int] = None,
+        page: int = 1,
+        limit: int = 10,
+    ) -> List[Task]:
+        query = self._db.query(Task).filter(Task.project_id == project_id)
+
+        if status_filter:
+            query = query.filter(Task.status == status_filter.value)
+        if priority:
+            query = query.filter(Task.priority == priority.value)
+        if assignee_id is not None:
+            query = query.filter(Task.assignee_id == assignee_id)
+
+        offset = (page - 1) * limit
+        return query.offset(offset).limit(limit).all()
 
     def get_by_id(self, task_id: int) -> Optional[Task]:
         return self._db.query(Task).filter(Task.id == task_id).first()

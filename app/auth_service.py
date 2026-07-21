@@ -1,7 +1,8 @@
 from fastapi import HTTPException, status
 
 from app.auth_repository import UserRepository
-from app.schemas import TokenResponse, UserCreate, UserLogin
+from app.models import User
+from app.schemas import ChangePassword, TokenResponse, UserCreate, UserLogin, UserUpdate
 from app.security import create_access_token, hash_password, verify_password
 
 
@@ -45,3 +46,34 @@ class AuthService:
             }
         )
         return TokenResponse(access_token=access_token)
+
+    def update_profile(self, current_user: User, user_data: UserUpdate):
+        update_data = user_data.model_dump(exclude_unset=True)
+
+        if "email" in update_data:
+            email = update_data["email"].strip().lower()
+            existing_user = self._user_repo.get_by_email(email)
+            if existing_user and existing_user.id != current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already exists",
+                )
+            update_data["email"] = email
+
+        if "full_name" in update_data:
+            update_data["full_name"] = update_data["full_name"].strip()
+
+        return self._user_repo.update(current_user, update_data)
+
+    def change_password(self, current_user: User, password_data: ChangePassword) -> dict:
+        if not verify_password(password_data.old_password, current_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Old password is incorrect",
+            )
+
+        self._user_repo.update(
+            current_user,
+            {"hashed_password": hash_password(password_data.new_password)},
+        )
+        return {"message": "Password changed"}

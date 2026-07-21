@@ -1,20 +1,35 @@
-from typing import List
+from typing import List, Optional
 from fastapi import HTTPException, status
 from app.repository import TaskRepository
 from app.models import Task
-from app.schemas import TaskCreate, TaskUpdate
+from app.schemas import TaskCreate, TaskPriority, TaskStatus, TaskUpdate
 
 class TaskService:
     def __init__(self, task_repo: TaskRepository):
         self._task_repo = task_repo
 
-    def get_tasks_by_project(self, project_id: int) -> List[Task]:
+    def get_tasks_by_project(
+        self,
+        project_id: int,
+        status_filter: Optional[TaskStatus] = None,
+        priority: Optional[TaskPriority] = None,
+        assignee_id: Optional[int] = None,
+        page: int = 1,
+        limit: int = 10,
+    ) -> List[Task]:
         if project_id < 1:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Project not found"
             )
-        return self._task_repo.get_by_project(project_id)
+        return self._task_repo.get_by_project(
+            project_id=project_id,
+            status_filter=status_filter,
+            priority=priority,
+            assignee_id=assignee_id,
+            page=page,
+            limit=limit,
+        )
 
     def create_task(self, project_id: int, task_data: TaskCreate, created_by: int) -> Task:
         if project_id < 1:
