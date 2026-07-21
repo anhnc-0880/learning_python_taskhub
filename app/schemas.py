@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 class TaskStatus(str, Enum):
@@ -92,3 +92,12 @@ class UserResponse(UserBase):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ErrorResponse(BaseModel):
+    message: str
+    request_id: Optional[str] = None
+
+
+class ValidationErrorResponse(ErrorResponse):
+    errors: list[dict[str, Any]]

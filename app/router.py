@@ -1,12 +1,13 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
+from app.api_docs import auth_responses, owner_responses
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskPriority, TaskStatus
 from app.service import TaskService
 from app.dependencies import get_task_service, get_current_user
 
-router = APIRouter()
+router = APIRouter(tags=["Tasks"])
 
-@router.get("/projects/{project_id}/tasks", response_model=List[TaskResponse])
+@router.get("/projects/{project_id}/tasks", response_model=List[TaskResponse], responses=auth_responses)
 def get_project_tasks(
     project_id: int,
     status_filter: Optional[TaskStatus] = Query(None, alias="status"),
@@ -26,7 +27,12 @@ def get_project_tasks(
         limit=limit,
     )
 
-@router.post("/projects/{project_id}/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/projects/{project_id}/tasks",
+    response_model=TaskResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=auth_responses,
+)
 def create_task(
     project_id: int, 
     task_data: TaskCreate,
@@ -35,7 +41,7 @@ def create_task(
 ):
     return service.create_task(project_id, task_data, current_user.id)
 
-@router.patch("/tasks/{task_id}", response_model=TaskResponse)
+@router.patch("/tasks/{task_id}", response_model=TaskResponse, responses=owner_responses)
 def update_task(
     task_id: int,
     task_data: TaskUpdate,
@@ -44,7 +50,7 @@ def update_task(
 ):
     return service.update_task(task_id, task_data, current_user.id, current_user.role)
 
-@router.delete("/tasks/{task_id}")
+@router.delete("/tasks/{task_id}", responses=owner_responses)
 def delete_task(
     task_id: int,
     service: TaskService = Depends(get_task_service),
