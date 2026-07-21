@@ -8,6 +8,7 @@ from app.models import Task
 from app.middleware import setup_middleware
 from app.repository import TaskRepository
 from app.router import router
+from app.user_router import router as user_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,3 +51,4 @@ def home():
 
 app.include_router(router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(user_router, prefix="/api/v1")

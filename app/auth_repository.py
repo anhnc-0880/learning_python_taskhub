@@ -21,3 +21,11 @@ class UserRepository:
         self._db.commit()
         self._db.refresh(user)
         return user
+
+    def update(self, user: User, user_data: dict) -> User:
+        for key, value in user_data.items():
+            setattr(user, key, value)
+
+        self._db.commit()
+        self._db.refresh(user)
+        return user
