@@ -110,3 +110,20 @@ class ErrorResponse(BaseModel):
 
 class ValidationErrorResponse(ErrorResponse):
     errors: list[dict[str, Any]]
+
+
+class WorkspaceCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
+class WorkspaceUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+
+
+class WorkspaceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    owner_id: int
+    created_at: datetime

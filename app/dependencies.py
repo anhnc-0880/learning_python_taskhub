@@ -9,6 +9,8 @@ from app.repository import TaskRepository
 from app.models import User
 from app.security import decode_access_token
 from app.service import TaskService
+from app.workspace_repository import WorkspaceRepository
+from app.workspace_service import WorkspaceService
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -35,6 +37,14 @@ def get_user_repo(db: Session = Depends(get_db)) -> UserRepository:
 
 def get_auth_service(repo: UserRepository = Depends(get_user_repo)) -> AuthService:
     return AuthService(repo)
+
+
+def get_workspace_repo(db: Session = Depends(get_db)) -> WorkspaceRepository:
+    return WorkspaceRepository(db)
+
+
+def get_workspace_service(repo: WorkspaceRepository = Depends(get_workspace_repo)) -> WorkspaceService:
+    return WorkspaceService(repo)
 
 
 def get_current_user(
