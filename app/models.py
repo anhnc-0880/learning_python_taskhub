@@ -30,3 +30,14 @@ class User(Base):
     role = Column(String(20), nullable=False, default="MEMBER")
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    token = Column(String(255), unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    revoked = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

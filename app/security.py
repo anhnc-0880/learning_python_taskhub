@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 import time
 from typing import Any, Dict
 
@@ -63,6 +64,10 @@ def create_access_token(payload: Dict[str, Any], expires_seconds: int = settings
     ).digest()
     signature_part = _b64url_encode(signature)
     return f"{header_part}.{payload_part}.{signature_part}"
+
+
+def create_refresh_token() -> str:
+    return secrets.token_urlsafe(48)
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
