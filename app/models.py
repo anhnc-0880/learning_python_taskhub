@@ -41,3 +41,12 @@ class RefreshToken(Base):
     expires_at = Column(DateTime, nullable=False)
     revoked = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    owner_id = Column(Integer, index=True, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

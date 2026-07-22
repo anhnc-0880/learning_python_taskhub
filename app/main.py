@@ -12,6 +12,7 @@ from app.middleware import setup_middleware
 from app.repository import TaskRepository
 from app.router import router
 from app.user_router import router as user_router
+from app.workspace_router import router as workspace_router
 
 setup_logging()
 logger = logging.getLogger("taskhub")
@@ -60,3 +61,4 @@ def home():
 app.include_router(router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
+app.include_router(workspace_router, prefix="/api/v1")
