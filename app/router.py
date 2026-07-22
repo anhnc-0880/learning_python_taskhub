@@ -25,6 +25,8 @@ def get_project_tasks(
         assignee_id=assignee_id,
         page=page,
         limit=limit,
+        current_user_id=current_user.id,
+        current_user_role=current_user.role,
     )
 
 @router.post(
@@ -39,7 +41,7 @@ def create_task(
     service: TaskService = Depends(get_task_service),
     current_user=Depends(get_current_user),
 ):
-    return service.create_task(project_id, task_data, current_user.id)
+    return service.create_task(project_id, task_data, current_user.id, current_user.role)
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse, responses=owner_responses)
 def update_task(

@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from app.auth_repository import UserRepository
 from app.auth_service import AuthService
 from app.database import SessionLocal
+from app.project_repository import ProjectRepository
+from app.project_service import ProjectService
 from app.repository import TaskRepository
 from app.models import User
 from app.security import decode_access_token
@@ -23,14 +25,6 @@ def get_db():
         db.close()
 
 
-def get_task_repo(db: Session = Depends(get_db)) -> TaskRepository:
-    return TaskRepository(db)
-
-
-def get_task_service(repo: TaskRepository = Depends(get_task_repo)) -> TaskService:
-    return TaskService(repo)
-
-
 def get_user_repo(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
 
@@ -45,6 +39,30 @@ def get_workspace_repo(db: Session = Depends(get_db)) -> WorkspaceRepository:
 
 def get_workspace_service(repo: WorkspaceRepository = Depends(get_workspace_repo)) -> WorkspaceService:
     return WorkspaceService(repo)
+
+
+def get_project_repo(db: Session = Depends(get_db)) -> ProjectRepository:
+    return ProjectRepository(db)
+
+
+def get_project_service(
+    project_repo: ProjectRepository = Depends(get_project_repo),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
+) -> ProjectService:
+    return ProjectService(project_repo, workspace_repo)
+
+
+def get_task_repo(db: Session = Depends(get_db)) -> TaskRepository:
+    return TaskRepository(db)
+
+
+def get_task_service(
+    task_repo: TaskRepository = Depends(get_task_repo),
+    project_repo: ProjectRepository = Depends(get_project_repo),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> TaskService:
+    return TaskService(task_repo, project_repo, workspace_repo, user_repo)
 
 
 def get_current_user(
