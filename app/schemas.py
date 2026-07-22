@@ -15,6 +15,12 @@ class TaskPriority(str, Enum):
     HIGH = "HIGH"
     URGENT = "URGENT"
 
+
+class ProjectStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    ARCHIVED = "ARCHIVED"
+
+
 class TaskBase(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
@@ -126,4 +132,28 @@ class WorkspaceResponse(BaseModel):
     id: int
     name: str
     owner_id: int
+    created_at: datetime
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    description: Optional[str] = None
+
+
+class ProjectUpdate(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
+    name: Optional[str] = Field(None, min_length=1)
+    description: Optional[str] = None
+    status: Optional[ProjectStatus] = None
+
+
+class ProjectResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+    id: int
+    workspace_id: int
+    name: str
+    description: Optional[str] = None
+    status: ProjectStatus = ProjectStatus.ACTIVE
     created_at: datetime

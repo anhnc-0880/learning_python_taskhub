@@ -1,12 +1,24 @@
 from typing import List, Optional
 from fastapi import HTTPException, status
+from app.auth_repository import UserRepository
+from app.project_repository import ProjectRepository
 from app.repository import TaskRepository
-from app.models import Task
+from app.models import Project, Task, Workspace
 from app.schemas import TaskCreate, TaskPriority, TaskStatus, TaskUpdate
+from app.workspace_repository import WorkspaceRepository
 
 class TaskService:
-    def __init__(self, task_repo: TaskRepository):
+    def __init__(
+        self,
+        task_repo: TaskRepository,
+        project_repo: ProjectRepository,
+        workspace_repo: WorkspaceRepository,
+        user_repo: UserRepository,
+    ):
         self._task_repo = task_repo
+        self._project_repo = project_repo
+        self._workspace_repo = workspace_repo
+        self._user_repo = user_repo
 
     def get_tasks_by_project(
         self,
@@ -16,12 +28,11 @@ class TaskService:
         assignee_id: Optional[int] = None,
         page: int = 1,
         limit: int = 10,
+        current_user_id: int = 0,
+        current_user_role: str = "MEMBER",
     ) -> List[Task]:
-        if project_id < 1:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
-            )
+        project = self._get_project_or_404(project_id)
+        self._check_workspace_owner(project, current_user_id, current_user_role)
         return self._task_repo.get_by_project(
             project_id=project_id,
             status_filter=status_filter,
@@ -31,16 +42,19 @@ class TaskService:
             limit=limit,
         )
 
-    def create_task(self, project_id: int, task_data: TaskCreate, created_by: int) -> Task:
-        if project_id < 1:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
-            )
-        return self._task_repo.create(project_id, task_data.model_dump(), created_by)
+    def create_task(
+        self,
+        project_id: int,
+        task_data: TaskCreate,
+        created_by: int,
+        current_user_role: str,
+    ) -> Task:
+        project = self._get_project_or_404(project_id)
+        self._check_workspace_owner(project, created_by, current_user_role)
 
-    def _can_manage_task(self, task: Task, current_user_id: int, current_user_role: str) -> bool:
-        return current_user_role == "ADMIN" or task.created_by == current_user_id
+        task_dict = task_data.model_dump()
+        self._check_assignee(task_dict.get("assignee_id"))
+        return self._task_repo.create(project_id, task_dict, created_by)
 
     def update_task(self, task_id: int, task_data: TaskUpdate, current_user_id: int, current_user_role: str) -> Task:
         task = self._task_repo.get_by_id(task_id)
@@ -50,13 +64,12 @@ class TaskService:
                 detail="Task not found"
             )
 
-        if not self._can_manage_task(task, current_user_id, current_user_role):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You cannot edit this task"
-            )
+        project = self._get_project_or_404(task.project_id)
+        self._check_workspace_owner(project, current_user_id, current_user_role)
 
         update_dict = task_data.model_dump(exclude_unset=True)
+        if "assignee_id" in update_dict:
+            self._check_assignee(update_dict["assignee_id"])
         return self._task_repo.update(task_id, update_dict)
 
     def delete_task(self, task_id: int, current_user_id: int, current_user_role: str) -> dict:
@@ -67,11 +80,47 @@ class TaskService:
                 detail="Task not found"
             )
 
-        if not self._can_manage_task(task, current_user_id, current_user_role):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You cannot delete this task"
-            )
+        project = self._get_project_or_404(task.project_id)
+        self._check_workspace_owner(project, current_user_id, current_user_role)
 
         self._task_repo.delete(task_id)
         return {"message": "Task deleted"}
+
+    def _get_project_or_404(self, project_id: int) -> Project:
+        project = self._project_repo.get_by_id(project_id)
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+        return project
+
+    def _get_workspace_or_404(self, workspace_id: int) -> Workspace:
+        workspace = self._workspace_repo.get_by_id(workspace_id)
+        if workspace is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workspace not found"
+            )
+        return workspace
+
+    def _check_workspace_owner(self, project: Project, current_user_id: int, current_user_role: str) -> None:
+        workspace = self._get_workspace_or_404(project.workspace_id)
+        if current_user_role == "ADMIN" or workspace.owner_id == current_user_id:
+            return
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace owner can manage tasks"
+        )
+
+    def _check_assignee(self, assignee_id: Optional[int]) -> None:
+        if assignee_id is None:
+            return
+
+        assignee = self._user_repo.get_by_id(assignee_id)
+        if assignee is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assignee not found"
+            )

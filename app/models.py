@@ -50,3 +50,14 @@ class Workspace(Base):
     name = Column(String(255), nullable=False)
     owner_id = Column(Integer, index=True, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, index=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(String(1000), nullable=True)
+    status = Column(String(20), nullable=False, default="ACTIVE")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

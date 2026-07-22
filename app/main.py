@@ -9,6 +9,7 @@ from app.database import Base, SessionLocal, engine
 from app.logging_config import setup_logging
 from app.models import Task
 from app.middleware import setup_middleware
+from app.project_router import router as project_router
 from app.repository import TaskRepository
 from app.router import router
 from app.user_router import router as user_router
@@ -59,6 +60,7 @@ def home():
     return {"message": "Welcome to TaskHub API", "docs": "/docs"}
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(project_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")
