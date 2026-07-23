@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, UniqueConstraint
 
 from app.database import Base
 
@@ -60,4 +60,44 @@ class Project(Base):
     name = Column(String(255), nullable=False)
     description = Column(String(1000), nullable=True)
     status = Column(String(20), nullable=False, default="ACTIVE")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class WorkspaceMember(Base):
+    __tablename__ = "workspace_members"
+    __table_args__ = (UniqueConstraint("workspace_id", "user_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, index=True, nullable=False)
+    user_id = Column(Integer, index=True, nullable=False)
+    role = Column(String(20), nullable=False, default="VIEWER")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class Label(Base):
+    __tablename__ = "labels"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, index=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    color = Column(String(20), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class TaskLabel(Base):
+    __tablename__ = "task_labels"
+    __table_args__ = (UniqueConstraint("task_id", "label_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, index=True, nullable=False)
+    label_id = Column(Integer, index=True, nullable=False)
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, index=True, nullable=False)
+    author_id = Column(Integer, index=True, nullable=False)
+    content = Column(String(1000), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

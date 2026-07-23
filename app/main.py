@@ -3,9 +3,11 @@ import logging
 
 from fastapi import FastAPI
 from app.auth_router import router as auth_router
+from app.comment_router import router as comment_router
 from app.config import settings
 from app.exception_handlers import setup_exception_handlers
 from app.database import Base, SessionLocal, engine
+from app.label_router import router as label_router
 from app.logging_config import setup_logging
 from app.models import Task
 from app.middleware import setup_middleware
@@ -61,6 +63,8 @@ def home():
 
 app.include_router(router, prefix="/api/v1")
 app.include_router(project_router, prefix="/api/v1")
+app.include_router(label_router, prefix="/api/v1")
+app.include_router(comment_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(user_router, prefix="/api/v1")
 app.include_router(workspace_router, prefix="/api/v1")

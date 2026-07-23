@@ -21,6 +21,12 @@ class ProjectStatus(str, Enum):
     ARCHIVED = "ARCHIVED"
 
 
+class WorkspaceMemberRole(str, Enum):
+    OWNER = "OWNER"
+    EDITOR = "EDITOR"
+    VIEWER = "VIEWER"
+
+
 class TaskBase(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
@@ -156,4 +162,57 @@ class ProjectResponse(BaseModel):
     name: str
     description: Optional[str] = None
     status: ProjectStatus = ProjectStatus.ACTIVE
+    created_at: datetime
+
+
+class WorkspaceMemberCreate(BaseModel):
+    user_id: int
+    role: WorkspaceMemberRole = WorkspaceMemberRole.VIEWER
+
+
+class WorkspaceMemberUpdate(BaseModel):
+    role: WorkspaceMemberRole
+
+
+class WorkspaceMemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+    id: int
+    workspace_id: int
+    user_id: int
+    role: WorkspaceMemberRole
+    created_at: datetime
+
+
+class LabelCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    color: str = Field(..., min_length=1)
+
+
+class LabelUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    color: Optional[str] = Field(None, min_length=1)
+
+
+class LabelResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+    name: str
+    color: str
+    created_at: datetime
+
+
+class CommentCreate(BaseModel):
+    content: str = Field(..., min_length=1)
+
+
+class CommentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    task_id: int
+    author_id: int
+    content: str
     created_at: datetime
