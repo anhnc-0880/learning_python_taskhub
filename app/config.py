@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     access_token_expire_seconds: int = 60 * 60
     refresh_token_expire_days: int = 7
     log_level: str = "INFO"
+    redis_url: str = "redis://localhost:6379/0"
+    cache_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
