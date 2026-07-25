@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from app.api_docs import auth_responses, owner_responses
 from app.schemas import TaskCreate, TaskUpdate, TaskResponse, TaskPriority, TaskStatus
 from app.service import TaskService
@@ -38,19 +38,21 @@ def get_project_tasks(
 def create_task(
     project_id: int, 
     task_data: TaskCreate,
+    background_tasks: BackgroundTasks,
     service: TaskService = Depends(get_task_service),
     current_user=Depends(get_current_user),
 ):
-    return service.create_task(project_id, task_data, current_user.id, current_user.role)
+    return service.create_task(project_id, task_data, current_user.id, current_user.role, background_tasks)
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse, responses=owner_responses)
 def update_task(
     task_id: int,
     task_data: TaskUpdate,
+    background_tasks: BackgroundTasks,
     service: TaskService = Depends(get_task_service),
     current_user=Depends(get_current_user),
 ):
-    return service.update_task(task_id, task_data, current_user.id, current_user.role)
+    return service.update_task(task_id, task_data, current_user.id, current_user.role, background_tasks)
 
 @router.delete("/tasks/{task_id}", responses=owner_responses)
 def delete_task(

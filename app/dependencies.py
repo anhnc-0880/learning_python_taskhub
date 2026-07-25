@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.auth_repository import UserRepository
 from app.auth_service import AuthService
+from app.cache import CacheService
 from app.comment_repository import CommentRepository
 from app.comment_service import CommentService
 from app.label_repository import LabelRepository
@@ -70,6 +71,10 @@ def get_task_repo(db: Session = Depends(get_db)) -> TaskRepository:
     return TaskRepository(db)
 
 
+def get_cache_service() -> CacheService:
+    return CacheService()
+
+
 def get_label_repo(db: Session = Depends(get_db)) -> LabelRepository:
     return LabelRepository(db)
 
@@ -84,8 +89,9 @@ def get_task_service(
     workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
     member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
     user_repo: UserRepository = Depends(get_user_repo),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> TaskService:
-    return TaskService(task_repo, project_repo, workspace_repo, member_repo, user_repo)
+    return TaskService(task_repo, project_repo, workspace_repo, member_repo, user_repo, cache_service)
 
 
 def get_label_service(
