@@ -3,29 +3,29 @@ from fastapi import BackgroundTasks, HTTPException, status
 from app.auth_repository import UserRepository
 from app.cache import CacheService
 from app.notification_service import send_task_assigned_notification
+from app.permission_service import WorkspacePermissionService
 from app.project_repository import ProjectRepository
 from app.repository import TaskRepository
-from app.models import Project, Task, User, Workspace
+from app.models import Project, Task, User
 from app.schemas import TaskCreate, TaskPriority, TaskStatus, TaskUpdate
 from app.workspace_member_repository import WorkspaceMemberRepository
-from app.workspace_repository import WorkspaceRepository
 
 class TaskService:
     def __init__(
         self,
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
-        workspace_repo: WorkspaceRepository,
         member_repo: WorkspaceMemberRepository,
         user_repo: UserRepository,
         cache_service: CacheService,
+        permission_service: WorkspacePermissionService,
     ):
         self._task_repo = task_repo
         self._project_repo = project_repo
-        self._workspace_repo = workspace_repo
         self._member_repo = member_repo
         self._user_repo = user_repo
         self._cache_service = cache_service
+        self._permission_service = permission_service
 
     def get_tasks_by_project(
         self,
@@ -39,7 +39,7 @@ class TaskService:
         current_user_role: str = "MEMBER",
     ) -> List[Any]:
         project = self._get_project_or_404(project_id)
-        self._check_workspace_member(project, current_user_id, current_user_role)
+        self._permission_service.check_member(project.workspace_id, current_user_id, current_user_role)
 
         cache_key = self._get_tasks_cache_key(project_id, status_filter, priority, assignee_id, page, limit)
         cached_tasks = self._cache_service.get(cache_key)
@@ -66,7 +66,7 @@ class TaskService:
         background_tasks: Optional[BackgroundTasks] = None,
     ) -> Task:
         project = self._get_project_or_404(project_id)
-        self._check_workspace_editor(project, created_by, current_user_role)
+        self._check_workspace_editor(project.workspace_id, created_by, current_user_role)
 
         task_dict = task_data.model_dump()
         assignee = self._check_assignee(project, task_dict.get("assignee_id"))
@@ -90,11 +90,11 @@ class TaskService:
         if task is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found"
+                detail="Task not found",
             )
 
         project = self._get_project_or_404(task.project_id)
-        self._check_workspace_editor(project, current_user_id, current_user_role)
+        self._check_workspace_editor(project.workspace_id, current_user_id, current_user_role)
 
         update_dict = task_data.model_dump(exclude_unset=True)
         assignee = None
@@ -114,11 +114,11 @@ class TaskService:
         if task is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found"
+                detail="Task not found",
             )
 
         project = self._get_project_or_404(task.project_id)
-        self._check_workspace_editor(project, current_user_id, current_user_role)
+        self._check_workspace_editor(project.workspace_id, current_user_id, current_user_role)
 
         self._task_repo.delete(task_id)
         self._clear_tasks_cache(project.id)
@@ -129,44 +129,16 @@ class TaskService:
         if project is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found"
+                detail="Project not found",
             )
         return project
 
-    def _get_workspace_or_404(self, workspace_id: int) -> Workspace:
-        workspace = self._workspace_repo.get_by_id(workspace_id)
-        if workspace is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Workspace not found"
-            )
-        return workspace
-
-    def _check_workspace_member(self, project: Project, current_user_id: int, current_user_role: str) -> str:
-        workspace = self._get_workspace_or_404(project.workspace_id)
-        if current_user_role == "ADMIN":
-            return "OWNER"
-
-        if workspace.owner_id == current_user_id:
-            return "OWNER"
-
-        member = self._member_repo.get_member(workspace.id, current_user_id)
-        if member is not None:
-            return member.role
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this workspace"
-        )
-
-    def _check_workspace_editor(self, project: Project, current_user_id: int, current_user_role: str) -> None:
-        role = self._check_workspace_member(project, current_user_id, current_user_role)
-        if role in ["OWNER", "EDITOR"]:
-            return
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only owner or editor can manage tasks"
+    def _check_workspace_editor(self, workspace_id: int, current_user_id: int, current_user_role: str) -> None:
+        self._permission_service.check_editor(
+            workspace_id,
+            current_user_id,
+            current_user_role,
+            "Only owner or editor can manage tasks",
         )
 
     def _check_assignee(self, project: Project, assignee_id: Optional[int]) -> Optional[User]:
@@ -177,14 +149,14 @@ class TaskService:
         if assignee is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Assignee not found"
+                detail="Assignee not found",
             )
 
         member = self._member_repo.get_member(project.workspace_id, assignee_id)
         if member is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Assignee must be a workspace member"
+                detail="Assignee must be a workspace member",
             )
         return assignee
 

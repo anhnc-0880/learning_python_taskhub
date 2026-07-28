@@ -4,11 +4,10 @@ from fastapi import HTTPException, status
 
 from app.label_repository import LabelRepository
 from app.models import Label, Project, Task
+from app.permission_service import WorkspacePermissionService
 from app.project_repository import ProjectRepository
 from app.repository import TaskRepository
 from app.schemas import LabelCreate, LabelUpdate
-from app.workspace_member_repository import WorkspaceMemberRepository
-from app.workspace_repository import WorkspaceRepository
 
 
 class LabelService:
@@ -17,14 +16,12 @@ class LabelService:
         label_repo: LabelRepository,
         project_repo: ProjectRepository,
         task_repo: TaskRepository,
-        workspace_repo: WorkspaceRepository,
-        member_repo: WorkspaceMemberRepository,
+        permission_service: WorkspacePermissionService,
     ):
         self._label_repo = label_repo
         self._project_repo = project_repo
         self._task_repo = task_repo
-        self._workspace_repo = workspace_repo
-        self._member_repo = member_repo
+        self._permission_service = permission_service
 
     def create_label(
         self,
@@ -43,7 +40,7 @@ class LabelService:
 
     def list_labels(self, project_id: int, current_user_id: int, current_user_role: str) -> List[Label]:
         project = self._get_project_or_404(project_id)
-        self._check_member(project, current_user_id, current_user_role)
+        self._permission_service.check_member(project.workspace_id, current_user_id, current_user_role)
         return self._label_repo.get_by_project(project.id)
 
     def update_label(
@@ -144,35 +141,10 @@ class LabelService:
             )
         return task
 
-    def _check_member(self, project: Project, current_user_id: int, current_user_role: str) -> str:
-        if current_user_role == "ADMIN":
-            return "OWNER"
-
-        workspace = self._workspace_repo.get_by_id(project.workspace_id)
-        if workspace is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Workspace not found",
-            )
-
-        if workspace.owner_id == current_user_id:
-            return "OWNER"
-
-        member = self._member_repo.get_member(workspace.id, current_user_id)
-        if member is not None:
-            return member.role
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this workspace",
-        )
-
     def _check_editor(self, project: Project, current_user_id: int, current_user_role: str) -> None:
-        role = self._check_member(project, current_user_id, current_user_role)
-        if role in ["OWNER", "EDITOR"]:
-            return
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only owner or editor can manage labels",
+        self._permission_service.check_editor(
+            project.workspace_id,
+            current_user_id,
+            current_user_role,
+            "Only owner or editor can manage labels",
         )

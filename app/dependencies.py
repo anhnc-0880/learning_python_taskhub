@@ -10,6 +10,7 @@ from app.comment_service import CommentService
 from app.label_repository import LabelRepository
 from app.label_service import LabelService
 from app.database import SessionLocal
+from app.permission_service import WorkspacePermissionService
 from app.project_repository import ProjectRepository
 from app.project_service import ProjectService
 from app.repository import TaskRepository
@@ -47,6 +48,13 @@ def get_workspace_member_repo(db: Session = Depends(get_db)) -> WorkspaceMemberR
     return WorkspaceMemberRepository(db)
 
 
+def get_permission_service(
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
+) -> WorkspacePermissionService:
+    return WorkspacePermissionService(workspace_repo, member_repo)
+
+
 def get_workspace_service(
     workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
     member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
@@ -62,9 +70,9 @@ def get_project_repo(db: Session = Depends(get_db)) -> ProjectRepository:
 def get_project_service(
     project_repo: ProjectRepository = Depends(get_project_repo),
     workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
-    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
+    permission_service: WorkspacePermissionService = Depends(get_permission_service),
 ) -> ProjectService:
-    return ProjectService(project_repo, workspace_repo, member_repo)
+    return ProjectService(project_repo, workspace_repo, permission_service)
 
 
 def get_task_repo(db: Session = Depends(get_db)) -> TaskRepository:
@@ -86,32 +94,30 @@ def get_comment_repo(db: Session = Depends(get_db)) -> CommentRepository:
 def get_task_service(
     task_repo: TaskRepository = Depends(get_task_repo),
     project_repo: ProjectRepository = Depends(get_project_repo),
-    workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
     member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
     user_repo: UserRepository = Depends(get_user_repo),
     cache_service: CacheService = Depends(get_cache_service),
+    permission_service: WorkspacePermissionService = Depends(get_permission_service),
 ) -> TaskService:
-    return TaskService(task_repo, project_repo, workspace_repo, member_repo, user_repo, cache_service)
+    return TaskService(task_repo, project_repo, member_repo, user_repo, cache_service, permission_service)
 
 
 def get_label_service(
     label_repo: LabelRepository = Depends(get_label_repo),
     project_repo: ProjectRepository = Depends(get_project_repo),
     task_repo: TaskRepository = Depends(get_task_repo),
-    workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
-    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
+    permission_service: WorkspacePermissionService = Depends(get_permission_service),
 ) -> LabelService:
-    return LabelService(label_repo, project_repo, task_repo, workspace_repo, member_repo)
+    return LabelService(label_repo, project_repo, task_repo, permission_service)
 
 
 def get_comment_service(
     comment_repo: CommentRepository = Depends(get_comment_repo),
     task_repo: TaskRepository = Depends(get_task_repo),
     project_repo: ProjectRepository = Depends(get_project_repo),
-    workspace_repo: WorkspaceRepository = Depends(get_workspace_repo),
-    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repo),
+    permission_service: WorkspacePermissionService = Depends(get_permission_service),
 ) -> CommentService:
-    return CommentService(comment_repo, task_repo, project_repo, workspace_repo, member_repo)
+    return CommentService(comment_repo, task_repo, project_repo, permission_service)
 
 
 def get_current_user(
