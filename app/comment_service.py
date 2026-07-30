@@ -4,11 +4,10 @@ from fastapi import HTTPException, status
 
 from app.comment_repository import CommentRepository
 from app.models import Comment, Project, Task
+from app.permission_service import WorkspacePermissionService
 from app.project_repository import ProjectRepository
 from app.repository import TaskRepository
 from app.schemas import CommentCreate
-from app.workspace_member_repository import WorkspaceMemberRepository
-from app.workspace_repository import WorkspaceRepository
 
 
 class CommentService:
@@ -17,14 +16,12 @@ class CommentService:
         comment_repo: CommentRepository,
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
-        workspace_repo: WorkspaceRepository,
-        member_repo: WorkspaceMemberRepository,
+        permission_service: WorkspacePermissionService,
     ):
         self._comment_repo = comment_repo
         self._task_repo = task_repo
         self._project_repo = project_repo
-        self._workspace_repo = workspace_repo
-        self._member_repo = member_repo
+        self._permission_service = permission_service
 
     def create_comment(
         self,
@@ -35,7 +32,7 @@ class CommentService:
     ) -> Comment:
         task = self._get_task_or_404(task_id)
         project = self._get_project_or_404(task.project_id)
-        self._check_member(project, current_user_id, current_user_role)
+        self._permission_service.check_member(project.workspace_id, current_user_id, current_user_role)
 
         data = comment_data.model_dump()
         data["content"] = data["content"].strip()
@@ -44,14 +41,14 @@ class CommentService:
     def list_comments(self, task_id: int, current_user_id: int, current_user_role: str) -> List[Comment]:
         task = self._get_task_or_404(task_id)
         project = self._get_project_or_404(task.project_id)
-        self._check_member(project, current_user_id, current_user_role)
+        self._permission_service.check_member(project.workspace_id, current_user_id, current_user_role)
         return self._comment_repo.get_by_task(task.id)
 
     def delete_comment(self, comment_id: int, current_user_id: int, current_user_role: str) -> dict:
         comment = self._get_comment_or_404(comment_id)
         task = self._get_task_or_404(comment.task_id)
         project = self._get_project_or_404(task.project_id)
-        role = self._check_member(project, current_user_id, current_user_role)
+        role = self._permission_service.check_member(project.workspace_id, current_user_id, current_user_role)
 
         if current_user_role != "ADMIN" and role not in ["OWNER", "EDITOR"] and comment.author_id != current_user_id:
             raise HTTPException(
@@ -88,26 +85,3 @@ class CommentService:
                 detail="Comment not found",
             )
         return comment
-
-    def _check_member(self, project: Project, current_user_id: int, current_user_role: str) -> str:
-        if current_user_role == "ADMIN":
-            return "OWNER"
-
-        workspace = self._workspace_repo.get_by_id(project.workspace_id)
-        if workspace is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Workspace not found",
-            )
-
-        if workspace.owner_id == current_user_id:
-            return "OWNER"
-
-        member = self._member_repo.get_member(workspace.id, current_user_id)
-        if member is not None:
-            return member.role
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this workspace",
-        )

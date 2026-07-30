@@ -3,9 +3,9 @@ from typing import List
 from fastapi import HTTPException, status
 
 from app.models import Project, Workspace
+from app.permission_service import WorkspacePermissionService
 from app.project_repository import ProjectRepository
 from app.schemas import ProjectCreate, ProjectUpdate
-from app.workspace_member_repository import WorkspaceMemberRepository
 from app.workspace_repository import WorkspaceRepository
 
 
@@ -14,11 +14,11 @@ class ProjectService:
         self,
         project_repo: ProjectRepository,
         workspace_repo: WorkspaceRepository,
-        member_repo: WorkspaceMemberRepository,
+        permission_service: WorkspacePermissionService,
     ):
         self._project_repo = project_repo
         self._workspace_repo = workspace_repo
-        self._member_repo = member_repo
+        self._permission_service = permission_service
 
     def create_project(
         self,
@@ -28,7 +28,7 @@ class ProjectService:
         current_user_role: str,
     ) -> Project:
         workspace = self._get_workspace_or_404(workspace_id)
-        self._check_workspace_editor(workspace, current_user_id, current_user_role)
+        self._check_workspace_editor(workspace.id, current_user_id, current_user_role)
 
         data = project_data.model_dump()
         data["name"] = data["name"].strip()
@@ -36,13 +36,13 @@ class ProjectService:
 
     def list_projects(self, workspace_id: int, current_user_id: int, current_user_role: str) -> List[Project]:
         workspace = self._get_workspace_or_404(workspace_id)
-        self._check_workspace_member(workspace, current_user_id, current_user_role)
+        self._permission_service.check_member(workspace.id, current_user_id, current_user_role)
         return self._project_repo.get_by_workspace(workspace_id)
 
     def get_project(self, project_id: int, current_user_id: int, current_user_role: str) -> Project:
         project = self._get_project_or_404(project_id)
         workspace = self._get_workspace_or_404(project.workspace_id)
-        self._check_workspace_member(workspace, current_user_id, current_user_role)
+        self._permission_service.check_member(workspace.id, current_user_id, current_user_role)
         return project
 
     def update_project(
@@ -54,7 +54,7 @@ class ProjectService:
     ) -> Project:
         project = self.get_project(project_id, current_user_id, current_user_role)
         workspace = self._get_workspace_or_404(project.workspace_id)
-        self._check_workspace_editor(workspace, current_user_id, current_user_role)
+        self._check_workspace_editor(workspace.id, current_user_id, current_user_role)
 
         update_data = project_data.model_dump(exclude_unset=True)
 
@@ -66,13 +66,13 @@ class ProjectService:
     def archive_project(self, project_id: int, current_user_id: int, current_user_role: str) -> Project:
         project = self.get_project(project_id, current_user_id, current_user_role)
         workspace = self._get_workspace_or_404(project.workspace_id)
-        self._check_workspace_editor(workspace, current_user_id, current_user_role)
+        self._check_workspace_editor(workspace.id, current_user_id, current_user_role)
         return self._project_repo.update(project, {"status": "ARCHIVED"})
 
     def delete_project(self, project_id: int, current_user_id: int, current_user_role: str) -> dict:
         project = self.get_project(project_id, current_user_id, current_user_role)
         workspace = self._get_workspace_or_404(project.workspace_id)
-        self._check_workspace_editor(workspace, current_user_id, current_user_role)
+        self._check_workspace_editor(workspace.id, current_user_id, current_user_role)
         self._project_repo.delete(project)
         return {"message": "Project deleted"}
 
@@ -94,28 +94,10 @@ class ProjectService:
             )
         return project
 
-    def _check_workspace_member(self, workspace: Workspace, current_user_id: int, current_user_role: str) -> str:
-        if current_user_role == "ADMIN":
-            return "OWNER"
-
-        if workspace.owner_id == current_user_id:
-            return "OWNER"
-
-        member = self._member_repo.get_member(workspace.id, current_user_id)
-        if member is not None:
-            return member.role
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a member of this workspace",
-        )
-
-    def _check_workspace_editor(self, workspace: Workspace, current_user_id: int, current_user_role: str) -> None:
-        role = self._check_workspace_member(workspace, current_user_id, current_user_role)
-        if role in ["OWNER", "EDITOR"]:
-            return
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only owner or editor can manage projects",
+    def _check_workspace_editor(self, workspace_id: int, current_user_id: int, current_user_role: str) -> None:
+        self._permission_service.check_editor(
+            workspace_id,
+            current_user_id,
+            current_user_role,
+            "Only owner or editor can manage projects",
         )
